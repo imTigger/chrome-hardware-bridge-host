@@ -6,6 +6,7 @@
   "path": "chrome-hardware-bridge-host.bat",
   "type": "stdio",
   "allowed_origins": [
-    "chrome-extension://alicendkoceobfaagdkipodbajgkfpba/"
+    "chrome-extension://alicendkoceobfaagdkipodbajgkfpba/",
+	"chrome-extension://fnfkcaeloalplnglklappfjfjeafakeo/"
   ]
 }
