@@ -83,6 +83,10 @@ class MessageHandler():
     def show(self, message):
         if self.window:
             self.window.showMessage(message)
+            
+    def close(self):
+        if self.window:
+            self.window.onClose(None)
 
     def handle(self, message):
 
@@ -117,7 +121,7 @@ class MessageHandler():
                 # OK Response
                 self.response(json.dumps({'status': 0}))
                 
-                sys.exit(0)
+                wx.CallLater(3000, self.close)
             elif data['action'] == 'list_printer':            
                 strComputer = "."
                 objWMIService = win32com.client.Dispatch("WbemScripting.SWbemLocator")
@@ -133,7 +137,7 @@ class MessageHandler():
             elif data['action'] == 'version':
                 self.response(json.dumps({'status': 0, 'action': 'version', 'value': VERSION}))
             elif data['action'] == 'bye':
-                sys.exit(0)
+                self.close()
             else:
                 raise ValueError('Unknown action: %s' % data['action'])
 
