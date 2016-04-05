@@ -198,7 +198,7 @@ thread.daemon = True
 thread.start()
 
 # icon object
-icon = wx.Icon(os.path.dirname(os.path.realpath(__file__)) + "/favicon.ico", wx.BITMAP_TYPE_ICO)
+icon = wx.Icon(os.path.dirname(os.path.realpath(__file__)) + "/icon-128.png", wx.BITMAP_TYPE_PNG)
 
 # taskbar icon
 taskbaricon = wx.adv.TaskBarIcon()
