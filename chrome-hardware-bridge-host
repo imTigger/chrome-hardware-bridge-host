@@ -20,7 +20,8 @@ try:
 except ImportError:
     pdfkit = None
 
-    
+# Title String
+TITLE = "Chrome Hardware Extension"
 # Version String
 VERSION = "1.1.0"
 # Debug Switch
@@ -80,9 +81,9 @@ class MessageHandler():
         self.log(">> %s" % message)
         send_message(message)
         
-    def show(self, message):
+    def show(self, message, time = 1000):
         if self.window:
-            self.window.showMessage(message)
+            self.window.showMessage(message, time)
             
     def close(self):
         if self.window:
@@ -106,11 +107,11 @@ class MessageHandler():
                     printer = ''
 
                 if 'url' in data:
-                    self.show("Print from URL: %s" % data['url'])
+                    self.show("Printing from URL: %s" % data['url'])
                     urllib.urlretrieve(data['url'], pdf_path)
                     #self.show("PDF Retrieved")
                 elif 'html' in data:
-                    self.show("Print from HTML: %s" % data['html'])
+                    self.show("Printing from HTML")
                     pdfkit.from_string(data['html'], pdf_path)
                     #self.show("PDF Generated")
                 else:
@@ -137,7 +138,8 @@ class MessageHandler():
             elif data['action'] == 'version':
                 self.response(json.dumps({'status': 0, 'action': 'version', 'value': VERSION}))
             elif data['action'] == 'bye':
-                self.close()
+                if DEBUG == False:
+                    self.close()
             else:
                 raise ValueError('Unknown action: %s' % data['action'])
 
@@ -146,10 +148,11 @@ class MessageHandler():
             # Error Response
             self.response(json.dumps({'status': 1, 'message': str(e)}))
 
-class NativeMessagingWindow(wx.Frame):
+class MainWindow(wx.Frame):
     def __init__(self, parent, title, queue):
         self.queue = queue
         self.parent = parent
+        self.handler = MessageHandler(self)
         
         wx.Frame.__init__(self, parent, title=title, size=(640,480))
         self.Bind(wx.EVT_CLOSE, self.onClose)        
@@ -176,9 +179,9 @@ class NativeMessagingWindow(wx.Frame):
         self.icon.Bind(wx.adv.EVT_TASKBAR_LEFT_UP, self.onIconClick)
         self.icon.Bind(wx.adv.EVT_TASKBAR_RIGHT_UP, self.onIconClick)
     
-    def showMessage(self, message):
+    def showMessage(self, message, time = 1000):
         if self.icon:
-            self.icon.ShowBalloon("Chrome Hardware Bridge", message, 1000)
+            self.icon.ShowBalloon(TITLE, message, time)
     
     def processMessages(self):
         while not self.queue.empty():
@@ -189,8 +192,7 @@ class NativeMessagingWindow(wx.Frame):
                 return
 
             # Procsss Input
-            handler = MessageHandler(self)
-            handler.handle(message)
+            self.handler.handle(message)
 
         wx.CallLater(100, self.processMessages)
 
@@ -203,7 +205,7 @@ app = wx.App(False)
 queue = Queue.Queue()
 
 # main window
-main_window = NativeMessagingWindow(None, 'Chrome Hardware Extension', queue)
+main_window = MainWindow(None, TITLE, queue)
 
 # message queue
 thread = threading.Thread(target=read_thread_func, args=(queue,))
@@ -215,7 +217,7 @@ icon = wx.Icon(os.path.dirname(os.path.realpath(__file__)) + "/icon-128.png", wx
 
 # taskbar icon
 taskbaricon = wx.adv.TaskBarIcon()
-taskbaricon.SetIcon(icon, "Chrome Hardware Extension")
+taskbaricon.SetIcon(icon, TITLE)
 
 main_window.setIcon(taskbaricon)
 
