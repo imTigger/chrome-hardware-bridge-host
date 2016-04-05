@@ -9,41 +9,34 @@ import json
 import urllib
 import tempfile
 import uuid
-import win32api
-import win32com.client
+import wx
 
 try:
     import pdfkit
 except ImportError:
     pdfkit = None
 
-try:
-    import Tkinter
-    import tkMessageBox
-except ImportError:
-    Tkinter = None
-
 # Debug Switch
-Debug = True
+Debug = False
 
 # On Windows, the default I/O mode is O_TEXT. Set this to O_BINARY
 # to avoid unwanted modifications of the input/output streams.
 if sys.platform == "win32":
     import os, msvcrt
+    import win32api
+    import win32com.client
     msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
     msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
 
 # Helper function that sends a message to the webapp.
 def send_message(message):
-   # Write message size.
-    sys.stdout.write(struct.pack('I', len(message)))
+    # Write message size.
+    os.write(1,struct.pack('I', len(message)))
     # Write the message itself.
-    sys.stdout.write(message)
-    sys.stdout.flush()
+    os.write(1,message)
 
 # Thread that reads messages from the webapp.
 def read_thread_func(queue):
-    message_number = 0
     while 1:
     # Read the message length (first 4 bytes).
         text_length_bytes = sys.stdin.read(4)
@@ -54,7 +47,7 @@ def read_thread_func(queue):
             sys.exit(0)
 
         try:
-                # Unpack message length as 4 byte integer.
+            # Unpack message length as 4 byte integer.
             text_length = struct.unpack('i', text_length_bytes)[0]
 
             # Read the text (JSON object) of the message.
@@ -114,7 +107,7 @@ class MessageHandler():
 
                 # OK Response
                 self.response(json.dumps({'status': 0}))
-            elif data['action'] == 'list_printer':
+            elif data['action'] == 'list_printer':                
                 strComputer = "."
                 objWMIService = win32com.client.Dispatch("WbemScripting.SWbemLocator")
                 objSWbemServices = objWMIService.ConnectServer(strComputer,"root\cimv2")
@@ -134,76 +127,61 @@ class MessageHandler():
             # Error Response
             self.response(json.dumps({'status': 1, 'message': str(e)}))
 
-if Tkinter:
-    class NativeMessagingWindow(Tkinter.Frame):
-        def __init__(self, queue):
-            self.queue = queue
+class NativeMessagingWindow(wx.Frame):
+    def __init__(self, parent, title, queue):
+        self.queue = queue
+        self.parent = parent
+        
+        wx.Frame.__init__(self, parent, title=title, size=(640,480))
+        
+        self.text = wx.TextCtrl(self, -1,
+                                style=wx.TE_MULTILINE|wx.BORDER_SUNKEN|wx.TE_READONLY|
+                                wx.TE_RICH2, size=(640,480))
+                                
+         
+        if Debug == True:
+            self.Show(True)
 
-            Tkinter.Frame.__init__(self)
-            self.pack()
+        wx.CallLater(100, self.processMessages)
 
-            self.text = Tkinter.Text(self)
-            self.text.grid(row=0, column=0, padx=10, pady=10, columnspan=2)
-            self.text.config(state=Tkinter.DISABLED, height=20, width=50)
+    def processMessages(self):
+        while not self.queue.empty():
 
-            self.messageContent = Tkinter.StringVar()
-            self.sendEntry = Tkinter.Entry(self, textvariable=self.messageContent)
-            self.sendEntry.grid(row=1, column=0, padx=10, pady=10)
+            message = self.queue.get_nowait()
+            if message == None:
+                self.quit()
+                return
 
-            self.sendButton = Tkinter.Button(self, text="Send", command=self.onSend)
-            self.sendButton.grid(row=1, column=1, padx=10, pady=10)
+            # Procsss Input
+            handler = MessageHandler(self)
+            handler.handle(message)
 
-            self.after(100, self.processMessages)
+        wx.CallLater(100, self.processMessages)
+    
 
-        def processMessages(self):
-            while not self.queue.empty():
+    def onSend(self):
+        text = '{"status": "' + self.messageContent.get() + '"}'
+        self.log('>> %s' % text)
+        try:
+            send_message(text)
+        except IOError:
+            self.log('Error sending message')
 
-                message = self.queue.get_nowait()
-                if message == None:
-                    self.quit()
-                    return
+    def log(self, message):
+        print message
+        self.text.AppendText(message + "\n")
 
-                # Procsss Input
-                handler = MessageHandler(self)
-                handler.handle(message)
+# Start the App
+app = wx.App(False)
+queue = Queue.Queue()
 
-            self.after(100, self.processMessages)
+main_window = NativeMessagingWindow(None, 'Chrome Hardware Extension', queue)
 
-        def onSend(self):
-            text = '{"status": "' + self.messageContent.get() + '"}'
-            self.log('>> %s' % text)
-            try:
-                send_message(text)
-            except IOError:
-                tkMessageBox.showinfo('Native Messaging Example',
-                                      'Failed to send message.')
-                sys.exit(1)
+thread = threading.Thread(target=read_thread_func, args=(queue,))
+thread.daemon = True
+thread.start()
 
-        def log(self, message):
-            self.text.config(state=Tkinter.NORMAL)
-            self.text.insert(Tkinter.END, message + "\n")
-            self.text.config(state=Tkinter.DISABLED)
+msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
+msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
 
-
-def Main():
-    if not Tkinter or Debug == False:
-        #send_message('Running in headless mode.')
-        read_thread_func(None)
-        sys.exit(0)
-
-    queue = Queue.Queue()
-
-    main_window = NativeMessagingWindow(queue)
-    main_window.master.title('Chrome Hardware Bridge')
-
-    thread = threading.Thread(target=read_thread_func, args=(queue,))
-    thread.daemon = True
-    thread.start()
-
-    main_window.mainloop()
-
-    sys.exit(0)
-
-
-if __name__ == '__main__':
-    Main()
+app.MainLoop()
