@@ -20,8 +20,11 @@ try:
 except ImportError:
     pdfkit = None
 
+    
+# Version String
+VERSION = "1.1.0"
 # Debug Switch
-Debug = False
+DEBUG = False
 
 # On Windows, the default I/O mode is O_TEXT. Set this to O_BINARY
 # to avoid unwanted modifications of the input/output streams.
@@ -124,9 +127,13 @@ class MessageHandler():
                 for objItem in colItems:
                     printers.append(objItem.Name)
 
-                self.response(json.dumps({'status': 0, 'action': 'list', 'type': 'printer', 'items': printers}))
+                self.response(json.dumps({'status': 0, 'action': 'list_printer', 'items': printers}))
+            elif data['action'] == 'version':
+                self.response(json.dumps({'status': 0, 'action': 'version', 'value': VERSION}))
+            elif data['action'] == 'bye':
+                sys.exit(0)
             else:
-                raise ValueError('Unknown action')
+                raise ValueError('Unknown action: %s' % data['action'])
 
 
         except Exception as e:
@@ -145,7 +152,7 @@ class NativeMessagingWindow(wx.Frame):
                                 style=wx.TE_MULTILINE|wx.BORDER_SUNKEN|wx.TE_READONLY|
                                 wx.TE_RICH2, size=(640,480))
                                 
-        if Debug == True:
+        if DEBUG == True:
             self.Show(True)
 
         wx.CallLater(100, self.processMessages)
