@@ -116,6 +116,8 @@ class MessageHandler():
 
                 # OK Response
                 self.response(json.dumps({'status': 0}))
+                
+                sys.exit(0)
             elif data['action'] == 'list_printer':            
                 strComputer = "."
                 objWMIService = win32com.client.Dispatch("WbemScripting.SWbemLocator")
