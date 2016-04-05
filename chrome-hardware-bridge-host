@@ -3,13 +3,17 @@
 
 import struct
 import sys
+import os
 import threading
 import Queue
 import json
 import urllib
 import tempfile
 import uuid
+import win32api
+import win32com.client
 import wx
+import wx.adv
 
 try:
     import pdfkit
@@ -22,9 +26,7 @@ Debug = False
 # On Windows, the default I/O mode is O_TEXT. Set this to O_BINARY
 # to avoid unwanted modifications of the input/output streams.
 if sys.platform == "win32":
-    import os, msvcrt
-    import win32api
-    import win32com.client
+    import msvcrt
     msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
     msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
 
@@ -64,16 +66,20 @@ def read_thread_func(queue):
             handler.handle(text)
 
 class MessageHandler():
-    def __init__(self, logger):
-        self.logger = logger
+    def __init__(self, window):
+        self.window = window
 
     def log(self, message):
-        if self.logger:
-            self.logger.log(message)
+        if self.window:
+            self.window.log(message)
 
     def response(self, message):
         self.log(">> %s" % message)
         send_message(message)
+        
+    def show(self, message):
+        if self.window:
+            self.window.showMessage(message)
 
     def handle(self, message):
 
@@ -93,13 +99,13 @@ class MessageHandler():
                     printer = ''
 
                 if 'url' in data:
-                    self.log("Print from URL: %s" % data['url'])
+                    self.show("Print from URL: %s" % data['url'])
                     urllib.urlretrieve(data['url'], pdf_path)
-                    self.log("PDF Retrieved")
+                    #self.show("PDF Retrieved")
                 elif 'html' in data:
-                    self.log("Print from HTML: %s" % data['html'])
+                    self.show("Print from HTML: %s" % data['html'])
                     pdfkit.from_string(data['html'], pdf_path)
-                    self.log("PDF Generated")
+                    #self.show("PDF Generated")
                 else:
                     raise ValueError('url or html required')
 
@@ -107,7 +113,7 @@ class MessageHandler():
 
                 # OK Response
                 self.response(json.dumps({'status': 0}))
-            elif data['action'] == 'list_printer':                
+            elif data['action'] == 'list_printer':            
                 strComputer = "."
                 objWMIService = win32com.client.Dispatch("WbemScripting.SWbemLocator")
                 objSWbemServices = objWMIService.ConnectServer(strComputer,"root\cimv2")
@@ -133,17 +139,34 @@ class NativeMessagingWindow(wx.Frame):
         self.parent = parent
         
         wx.Frame.__init__(self, parent, title=title, size=(640,480))
+        self.Bind(wx.EVT_CLOSE, self.onClose)        
         
         self.text = wx.TextCtrl(self, -1,
                                 style=wx.TE_MULTILINE|wx.BORDER_SUNKEN|wx.TE_READONLY|
                                 wx.TE_RICH2, size=(640,480))
                                 
-         
         if Debug == True:
             self.Show(True)
 
         wx.CallLater(100, self.processMessages)
-
+    
+    def onIconClick(self, event):
+        self.Show(True)
+    
+    def onClose(self, event):
+        if self.icon:
+            self.icon.Destroy()
+        self.Destroy()        
+    
+    def setIcon(self, icon):
+        self.icon = icon
+        self.icon.Bind(wx.adv.EVT_TASKBAR_LEFT_UP, self.onIconClick)
+        self.icon.Bind(wx.adv.EVT_TASKBAR_RIGHT_UP, self.onIconClick)
+    
+    def showMessage(self, message):
+        if self.icon:
+            self.icon.ShowBalloon("Chrome Hardware Bridge", message, 1000)
+    
     def processMessages(self):
         while not self.queue.empty():
 
@@ -157,31 +180,30 @@ class NativeMessagingWindow(wx.Frame):
             handler.handle(message)
 
         wx.CallLater(100, self.processMessages)
-    
-
-    def onSend(self):
-        text = '{"status": "' + self.messageContent.get() + '"}'
-        self.log('>> %s' % text)
-        try:
-            send_message(text)
-        except IOError:
-            self.log('Error sending message')
 
     def log(self, message):
-        print message
         self.text.AppendText(message + "\n")
+
 
 # Start the App
 app = wx.App(False)
 queue = Queue.Queue()
 
+# main window
 main_window = NativeMessagingWindow(None, 'Chrome Hardware Extension', queue)
 
+# message queue
 thread = threading.Thread(target=read_thread_func, args=(queue,))
 thread.daemon = True
 thread.start()
 
-msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
-msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
+# icon object
+icon = wx.Icon(os.path.dirname(os.path.realpath(__file__)) + "/favicon.ico", wx.BITMAP_TYPE_ICO)
+
+# taskbar icon
+taskbaricon = wx.adv.TaskBarIcon()
+taskbaricon.SetIcon(icon, "Chrome Hardware Extension")
+
+main_window.setIcon(taskbaricon)
 
 app.MainLoop()
