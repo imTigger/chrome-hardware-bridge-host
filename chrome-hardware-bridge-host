@@ -25,7 +25,7 @@ except ImportError:
 # Title String
 TITLE = "Chrome Hardware Extension"
 # Version String
-VERSION = "1.1.1"
+VERSION = "1.1.2"
 # Debug Switch
 DEBUG = False
 
@@ -33,21 +33,22 @@ DEBUG = False
 # to avoid unwanted modifications of the input/output streams.
 if sys.platform == "win32":
     import msvcrt
-    msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
-    msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
+    msvcrt.setmode(sys.__stdin__.fileno(), os.O_BINARY)
+    msvcrt.setmode(sys.__stdout__.fileno(), os.O_BINARY)
 
 # Helper function that sends a message to the webapp.
 def send_message(message):
     # Write message size.
-    os.write(1,struct.pack('I', len(message)))
+    sys.__stdout__.write(struct.pack('I', len(message)))
     # Write the message itself.
-    os.write(1,message)
+    sys.__stdout__.write(message)
+    sys.__stdout__.flush()
 
 # Thread that reads messages from the webapp.
 def read_thread_func(queue):
     while 1:
     # Read the message length (first 4 bytes).
-        text_length_bytes = sys.stdin.read(4)
+        text_length_bytes = sys.__stdin__.read(4)
 
         if len(text_length_bytes) == 0:
             if queue:
@@ -59,7 +60,7 @@ def read_thread_func(queue):
             text_length = struct.unpack('i', text_length_bytes)[0]
 
             # Read the text (JSON object) of the message.
-            text = sys.stdin.read(text_length).decode('utf-8')
+            text = sys.__stdin__.read(text_length).decode('utf-8')
         except:
             text = ''
             print('Decode error: %s' % text)
@@ -158,7 +159,7 @@ class MessageHandler():
 
         win32gui.EnumWindows(self.enum_callback, self.toplist)
         try:
-            wnd = [(hwnd, title) for hwnd, title in self.winlist if 'acrobat' in title.lower()]
+            wnd = [(hwnd, title) for hwnd, title in self.winlist if ('acrobat reader' in title.lower() or 'adobe reader' in title.lower())]
             # just grab the first window that matches
             wnd = wnd[0]
             # use the window handle to set focus
@@ -244,5 +245,9 @@ taskbaricon = wx.adv.TaskBarIcon()
 taskbaricon.SetIcon(icon, TITLE)
 
 main_window.setIcon(taskbaricon)
+
+sys.stdin = open(os.devnull, 'r')
+sys.stdout = open(os.devnull, 'w')
+sys.stderr = open(os.devnull, 'w')
 
 app.MainLoop()
