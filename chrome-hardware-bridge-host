@@ -81,6 +81,7 @@ class MessageHandler():
         
     def show(self, message, time = 1000):
         if self.window:
+            self.log(message)
             self.window.showMessage(message, time)
             
     def close(self):
@@ -103,22 +104,25 @@ class MessageHandler():
                     printer = data['printer']
                 else:
                     printer = ''
+                    
+                self.log("URL = %s" % data['url'])
+                self.log("Printer = %s" % printer)
 
                 if 'url' in data:
                     self.show("Printing from URL: %s" % data['url'])
                     urllib.urlretrieve(data['url'], pdf_path)
-                    if DEBUG == True:
-                        self.show("PDF Retrieved")
+                    self.log("PDF Retrieved")
                 else:
                     raise ValueError('url required')
-
+                    
                 win32api.ShellExecute(0, "printto", pdf_path, printer, ".", 0)
+                self.log("printto called")
 
                 # OK Response
                 self.response(json.dumps({'status': 0}))
                 
                 if DEBUG == False:
-                    wx.CallLater(100, self.hide_window)
+                    # wx.CallLater(100, self.hide_window)
                     wx.CallLater(3000, self.close)
                 
             elif data['action'] == 'list_printer':            
@@ -173,7 +177,7 @@ class MainWindow(wx.Frame):
         self.handler = MessageHandler(self)
         
         wx.Frame.__init__(self, parent, title=title, size=(640,480))
-        self.Bind(wx.EVT_CLOSE, self.onClose)        
+        self.Bind(wx.EVT_CLOSE, self.onClose)
         
         self.text = wx.TextCtrl(self, -1,
                                 style=wx.TE_MULTILINE|wx.BORDER_SUNKEN|wx.TE_READONLY|
