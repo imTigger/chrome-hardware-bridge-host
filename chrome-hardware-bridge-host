@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2016 Tiger-Workshop Limited. All rights reserved.
+# Copyright (c) 2018 Tiger-Workshop Limited. All rights reserved.
 
 import struct
 import sys
@@ -10,17 +10,16 @@ import json
 import urllib
 import tempfile
 import uuid
-import win32api
 import win32com.client
 import win32gui
-import win32con
 import wx
 import wx.adv
+import subprocess
 
 # Title String
 TITLE = "Chrome Hardware Extension"
 # Version String
-VERSION = "1.1.4"
+VERSION = "2.0.0"
 # Debug Switch
 DEBUG = False
 
@@ -104,25 +103,21 @@ class MessageHandler():
                     printer = data['printer']
                 else:
                     printer = ''
-                    
-                self.log("URL = %s" % data['url'])
-                self.log("Printer = %s" % printer)
-
+                
                 if 'url' in data:
-                    self.show("Printing from URL: %s" % data['url'])
+                    self.show("Printing from %s to %s" % (data['url'], printer))
                     urllib.urlretrieve(data['url'], pdf_path)
-                    self.log("PDF Retrieved")
+                    self.log("PDF downloaded from %s to %s" % (data['url'], pdf_path))
                 else:
                     raise ValueError('url required')
                     
-                win32api.ShellExecute(0, "printto", pdf_path, printer, ".", 0)
-                self.log("printto called")
+                status = subprocess.call(["PDFtoPrinter.exe", pdf_path, printer])
+                self.log("PDFtoPrinter.exe called with status: %s" % status)
 
                 # OK Response
-                self.response(json.dumps({'status': 0}))
+                self.response(json.dumps({'status': status}))
                 
                 if DEBUG == False:
-                    # wx.CallLater(100, self.hide_window)
                     wx.CallLater(3000, self.close)
                 
             elif data['action'] == 'list_printer':
@@ -149,22 +144,6 @@ class MessageHandler():
         except Exception as e:
             # Error Response
             self.response(json.dumps({'status': 1, 'message': str(e)}))
-    
-    def hide_window(self):
-        self.toplist = []
-        self.winlist = []
-
-        win32gui.EnumWindows(self.enum_callback, self.toplist)
-        try:
-            wnd = [(hwnd, title) for hwnd, title in self.winlist if ('acrobat reader' in title.lower() or 'adobe reader' in title.lower())]
-            # just grab the first window that matches
-            wnd = wnd[0]
-            # use the window handle to set focus
-            win32gui.ShowWindow(wnd[0], win32con.SW_HIDE)
-        except:
-            pass
-        
-        wx.CallLater(100, self.hide_window)
     
     def enum_callback(self, hwnd, results):
         self.winlist.append((hwnd, win32gui.GetWindowText(hwnd)))
