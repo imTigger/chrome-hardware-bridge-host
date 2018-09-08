@@ -1,4 +1,4 @@
-:: Copyright (c) 2016 Tiger-Workshop Limited. All rights reserved.
+:: Copyright (c) 2018 Tiger-Workshop Limited. All rights reserved.
 
 :: Change HKCU to HKLM if you want to install globally.
 :: %~dp0 is the directory containing this bat script and ends with a backslash.

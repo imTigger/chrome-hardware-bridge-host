@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2016 Tiger-Workshop Limited. All rights reserved.
+# Copyright (c) 2018 Tiger-Workshop Limited. All rights reserved.
 
 set -e
 

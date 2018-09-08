@@ -17,7 +17,7 @@ import wx.adv
 import subprocess
 
 # Title String
-TITLE = "Chrome Hardware Extension"
+TITLE = "Chrome Direct Print"
 # Version String
 VERSION = "2.0.0"
 # Debug Switch

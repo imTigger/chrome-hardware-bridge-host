@@ -1,12 +1,12 @@
-// Copyright (c) 2016 Tiger-Workshop Limited. All rights reserved.
+// Copyright (c) 2018 Tiger-Workshop Limited. All rights reserved.
 
 {
   "name": "com.tigerworkshop.chrome.hardwarebridge",
-  "description": "Chrome Hardware Bridge Host",
+  "description": "Chrome Direct Print Host",
   "path": "HOST_PATH",
   "type": "stdio",
   "allowed_origins": [
     "chrome-extension://alicendkoceobfaagdkipodbajgkfpba/",
-	"chrome-extension://fnfkcaeloalplnglklappfjfjeafakeo/"
+    "chrome-extension://fnfkcaeloalplnglklappfjfjeafakeo/"
   ]
 }
